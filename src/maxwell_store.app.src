@@ -1,0 +1,13 @@
+{application, maxwell_store,
+  [{description, "An table-count-unlimited, records-ordered,
+  offset-limit-select-efficient offset-value storage engine."},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {mod, {maxwell_store_app, []}},
+    {applications, [kernel, stdlib, lager, rocksdb]},
+    {env, []},
+    {modules, []},
+    {maintainers, []},
+    {licenses, ["Apache 2.0"]},
+    {links, []}
+  ]}.
