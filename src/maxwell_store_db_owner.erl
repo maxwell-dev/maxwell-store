@@ -82,6 +82,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 open_db() ->
   DbDir = maxwell_store_config:get_data_dir(),
+  ok = filelib:ensure_dir(DbDir),
   Spec = get_db_spec(),
   Result = {ok, _} = maxwell_store_db:open(DbDir, Spec),
   lager:info("Db opened: dir: ~p, spec: ~p", [DbDir, Spec]),
