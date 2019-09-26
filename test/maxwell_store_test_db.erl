@@ -476,8 +476,8 @@ seek_offset(DbRef) ->
   Result6 = maxwell_store_db:seek_max_offset(DbRef, Topic4),
   maxwell_store_test_utils:show(DbRef),
   [
-    ?_assertMatch(undefined, Result),
-    ?_assertMatch(undefined, Result2),
+    ?_assertMatch(not_found, Result),
+    ?_assertMatch(not_found, Result2),
     ?_assertMatch({ok, 1024}, Result3),
     ?_assertMatch({ok, 1026}, Result4),
     ?_assertMatch({ok, 1024}, Result5),
@@ -516,7 +516,7 @@ seek_min_offset_since(DbRef) ->
     ?_assertMatch({ok, 1024}, Result),
     ?_assertMatch({ok, 1025}, Result2),
     ?_assertMatch({ok, 1026}, Result3),
-    ?_assertMatch(undefined, Result4)
+    ?_assertMatch(not_found, Result4)
   ].
 
 seek_max_offset_until(DbRef) ->
@@ -548,7 +548,7 @@ seek_max_offset_until(DbRef) ->
   maxwell_store_test_utils:show(DbRef),
 
   [
-    ?_assertMatch(undefined, Result),
+    ?_assertMatch(not_found, Result),
     ?_assertMatch({ok, 1024}, Result2),
     ?_assertMatch({ok, 1025}, Result3),
     ?_assertMatch({ok, 1026}, Result4)

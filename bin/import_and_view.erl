@@ -7,12 +7,12 @@
 %%% @end
 %%% Created : 22. Jun 2018 8:25 AM
 %%%-------------------------------------------------------------------
--module(load_demo_data).
+-module(import_demo_data).
 
 main([Topic, Count]) ->
   try
     ok = start_maxwell_store(),
-    load_data(
+    import_data(
       list_to_binary(Topic),
       list_to_integer(Count)
     )
@@ -31,8 +31,8 @@ main(Any) ->
 start_maxwell_store() ->
   add_code_path(),
   add_env_vars(),
-  case application:start(maxwell_store) of
-    ok -> ok;
+  case application:ensure_all_started(maxwell_store) of
+    {ok, _} -> ok;
     {error, {already_started, _}} -> ok;
     Error -> Error
   end.
@@ -64,9 +64,7 @@ detect_lib_dir() ->
 add_env_vars() ->
   DataDir = detect_data_dir(),
   log("Detected data dir: ~p", [DataDir]),
-  LockFile = DataDir ++ "/maxwell_store.lock",
   application:set_env(maxwell_store, data_dir, DataDir),
-  application:set_env(maxwell_store, lock_file, LockFile),
   application:set_env(maxwell_store, retention_age, 30),
   application:set_env(maxwell_store, clean_interval, 5).
 
@@ -74,34 +72,29 @@ detect_data_dir() ->
   ScriptDir = filename:absname(filename:dirname(escript:script_name())),
   DataDir0 = ScriptDir ++ "/../data",
   DataDir1 = ScriptDir ++ "/../../../../../data/maxwell_store/",
-  case filelib:is_file(DataDir0 ++ "/maxwell_store.lock") of
+  case filelib:is_file(DataDir0 ++ "/LOCK") of
     true -> DataDir0;
     false ->
-      case filelib:is_file(DataDir1 ++ "/maxwell_store.lock") of
+      case filelib:is_file(DataDir1 ++ "/LOCK") of
         true -> DataDir1;
         false -> erlang:error({no_data_dir, DataDir0, DataDir1})
       end
   end.
 
-load_data(Topic, Count) ->
-  load_data0(Topic, Count-1, Count - 1).
+import_data(Topic, Count) ->
+  import_data0(Topic, Count-1, Count - 1).
 
-load_data0(Topic, 0, Max) ->
+import_data0(Topic, 0, Max) ->
   {ok, _} = maxwell_store_topic_owner:ensure_started(Topic),
   ok = maxwell_store_topic_owner:put_values(Topic, [<<Max/integer>>]);
-load_data0(Topic, N, Max) ->
+import_data0(Topic, N, Max) ->
   {ok, _} = maxwell_store_topic_owner:ensure_started(Topic),
   ok = maxwell_store_topic_owner:put_values(Topic, [<<(Max - N)/integer>>]),
   timer:sleep(10),
-  load_data0(Topic, N - 1, Max).
+  import_data0(Topic, N - 1, Max).
 
 view_data() ->
-  lists:foreach(
-    fun(DbRef) -> view_data(DbRef) end,
-    maxwell_store_db_owner:get_all()
-  ).
-
-view_data(DbRef) ->
+  {ok, DbRef} = maxwell_store_db_owner:get_ref(),
   maxwell_store_db:foreach(DbRef,
     fun(T, E) ->
       log("view: ~p, ~p", [T, E])
@@ -109,7 +102,7 @@ view_data(DbRef) ->
   ).
 
 usage() ->
-  log("usage: load_demo_data topic count(>0)"),
+  log("usage: import_and_view topic count(>0)"),
   halt(1).
 
 log(Format) ->

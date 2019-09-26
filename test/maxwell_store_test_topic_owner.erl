@@ -115,7 +115,7 @@ seek_min_offset_since(_DbRef) ->
     ?_assertMatch({ok, 0}, Result),
     ?_assertMatch({ok, 1}, Result2),
     ?_assertMatch({ok, 2}, Result3),
-    ?_assertMatch(undefined, Result4)
+    ?_assertMatch(not_found, Result4)
   ].
 
 seek_max_offset_until(_DbRef) ->
@@ -141,7 +141,7 @@ seek_max_offset_until(_DbRef) ->
   Result3 = maxwell_store_topic_owner:seek_max_offset_until(Topic, Timestamp2),
   Result4 = maxwell_store_topic_owner:seek_max_offset_until(Topic, Timestamp3),
   [
-    ?_assertMatch(undefined, Result),
+    ?_assertMatch(not_found, Result),
     ?_assertMatch({ok, 0}, Result2),
     ?_assertMatch({ok, 1}, Result3),
     ?_assertMatch({ok, 2}, Result4)

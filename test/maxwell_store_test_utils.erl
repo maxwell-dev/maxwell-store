@@ -17,7 +17,7 @@
 ]).
 
 setup() ->
-  DataDir = "/Users/xuchaoqian/codebase/hongjia/maxwell_store/data/",
+  DataDir = "/Users/xuchaoqian/codebase/bitbros/maxwell-store/data/",
   os:cmd("rm -rf " ++ DataDir ++ "/*"),
   application:set_env(maxwell_store, data_dir, DataDir),
   application:set_env(maxwell_store, retention_age, 30),

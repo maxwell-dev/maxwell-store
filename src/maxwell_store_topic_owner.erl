@@ -121,7 +121,7 @@ handle_info({'DOWN', WatcherRef, process, _, Reason}, State) ->
     "Watcher was down: topic_name: ~p, watcher_ref: ~p, reason: ~p",
     [State#state.topic_name, WatcherRef, Reason]
   ),
-  {noreply, on_watcher_down(WatcherRef, State)};
+  noreply(on_watcher_down(WatcherRef, State));
 handle_info(Info, State) ->
   lager:error("Recevied unknown info: ~p", [Info]),
   noreply(State).
@@ -143,23 +143,18 @@ code_change(_OldVsn, State, _Extra) ->
 init_state(TopicName) ->
   {ok, DbRef} = maxwell_store_db_owner:get_ref(),
   {ok, TopicId} = maxwell_store_db_owner:create_topic(TopicName),
-  Offset =
-    case maxwell_store_db:seek_max_offset(DbRef, TopicId) of
-      undefined -> -1;
-      MaxOffset -> MaxOffset
-    end,
   #state{
     db_ref = DbRef, 
-    topic_name = TopicName, topic_id = TopicId,
-    offset = Offset, put_mode = ?MODE_AUTO,
+    topic_name = TopicName, 
+    topic_id = TopicId,
+    offset = get_max_offset(DbRef, TopicId), 
+    put_mode = ?MODE_AUTO,
     watchers = dict:new()
   }.
 
 put_values0(Values, State) ->
-  CurrOffset = %% the result depends on prev put mode
-  case State#state.put_mode of
-    ?MODE_MANUAL -> maxwell_store_db:seek_max_offset(
-      State#state.db_ref, State#state.topic_id);
+  CurrOffset = case State#state.put_mode of
+    ?MODE_MANUAL -> get_max_offset(State);
     ?MODE_AUTO -> State#state.offset
   end,
   {NewOffset, NewEntries} = lists:foldl(
@@ -173,32 +168,26 @@ put_values0(Values, State) ->
   ),
   notify(NewOffset, State),
   {ok, State#state{
-    offset = NewOffset, put_mode = ?MODE_AUTO
-  }}.
+    offset = NewOffset, put_mode = ?MODE_AUTO}
+  }.
 
 put_entries0(Entries, State) ->
   ok = maxwell_store_db:put_batch(
     State#state.db_ref, State#state.topic_id, Entries
   ),
   case lists:last(Entries) of
-    {MaxOffset, _, _} ->
-      notify(MaxOffset, State);
-    {MaxOffset, _} ->
-      notify(MaxOffset, State)
+    {MaxOffset, _, _} -> notify(MaxOffset, State);
+    {MaxOffset, _} -> notify(MaxOffset, State)
   end,
   {ok, State#state{put_mode = ?MODE_MANUAL}}.
 
-get_from0(-1, Limit, State) ->
-  MaxOffset = maxwell_store_db:seek_max_offset(
-    State#state.db_ref, State#state.topic_id
-  ),
-  get_from0(MaxOffset, Limit, State);
-get_from0(Offset, Limit, State) when Offset =< -2 ->
-  Timestamp = get_current_timestamp() - Offset * 1000,
-  MinOffset = maxwell_store_db:seek_min_offset_since(
-    State#state.db_ref, State#state.topic_id, Timestamp
-  ),
-  get_from0(MinOffset, Limit, State);
+get_from0(Offset, Limit, State) when Offset < 0 ->
+  Timestamp = get_current_timestamp() + Offset * 1000,
+  case maxwell_store_db:seek_min_offset_since(
+      State#state.db_ref, State#state.topic_id, Timestamp) of
+    {ok, MinOffset} -> get_from0(MinOffset, Limit, State);
+    not_found -> {[], State}
+  end;
 get_from0(Offset, Limit, State) ->
   Entries = maxwell_store_db:get_from(
     State#state.db_ref, State#state.topic_id, Offset, Limit
@@ -206,27 +195,31 @@ get_from0(Offset, Limit, State) ->
   {Entries, State}.
 
 seek_max_offset0(State) ->
-  MaxOffset = maxwell_store_db:seek_max_offset(
+  Result = maxwell_store_db:seek_max_offset(
     State#state.db_ref, State#state.topic_id
   ),
-  {MaxOffset, State}.
+  {Result, State}.
 
 seek_min_offset_since0(Timestamp, State) ->
-  MinOffset = maxwell_store_db:seek_min_offset_since(
+  Result = maxwell_store_db:seek_min_offset_since(
     State#state.db_ref, State#state.topic_id, Timestamp
   ),
-  {MinOffset, State}.
+  {Result, State}.
 
 seek_max_offset_until0(Timestamp, State) ->
-  MaxOffset = maxwell_store_db:seek_max_offset_until(
+  Result = maxwell_store_db:seek_max_offset_until(
     State#state.db_ref, State#state.topic_id, Timestamp
   ),
-  {MaxOffset, State}.
+  {Result, State}.
 
 add_watcher0(Pid, State) ->
   Ref = erlang:monitor(process, Pid),
   Watchers = dict:store(Ref, Pid, State#state.watchers),
   {ok, State#state{watchers = Watchers}}.
+
+on_watcher_down(WatcherRef, State) ->
+  Watchers = dict:erase(WatcherRef, State#state.watchers),
+  State#state{watchers = Watchers}.
 
 notify(MaxOffset, State) ->
   dict:fold(
@@ -236,9 +229,14 @@ notify(MaxOffset, State) ->
     undefined, State#state.watchers
   ).
 
-on_watcher_down(WatcherRef, State) ->
-  Watchers = dict:erase(WatcherRef, State#state.watchers),
-  State#state{watchers = Watchers}.
+get_max_offset(#state{db_ref = DbRef, topic_id = TopicId}) ->
+  get_max_offset(DbRef, TopicId).
+
+get_max_offset(DbRef, TopicId) ->
+  case maxwell_store_db:seek_max_offset(DbRef, TopicId) of
+    {ok, MaxOffset} -> MaxOffset;
+    not_found -> -1
+  end.
 
 reply({Reply, State}) ->
   {reply, Reply, State}.

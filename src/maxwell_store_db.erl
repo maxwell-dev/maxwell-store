@@ -220,7 +220,7 @@ delete_to(DbRef, TopicId, ToOffset, Limit) ->
   validate_limit(Limit),
   MinResult = seek_min_offset(DbRef, TopicId),
   MaxResult = seek_max_offset(DbRef, TopicId),
-  case MinResult =:= undefined orelse MaxResult =:= undefined of
+  case MinResult =:= not_found orelse MaxResult =:= not_found of
     true -> ok;
     false ->
       {ok, MinOffset} = MinResult,
@@ -275,7 +275,7 @@ seek_min_offset(DbRef, TopicId) ->
   try
     case rocksdb:iterator_move(Iter, pack_min_userland_key(TopicId)) of
       {ok, PackedKey, _} -> {ok, extract_right_offset(PackedKey)};
-      {error, invalid_iterator} -> undefined;
+      {error, invalid_iterator} -> not_found;
       Error -> Error 
     end
   after
@@ -289,7 +289,7 @@ seek_max_offset(DbRef, TopicId) ->
       Iter, {seek_for_prev, pack_max_userland_key(TopicId)}),
     case Result of
       {ok, PackedKey, _} -> {ok, extract_right_offset(PackedKey)};
-      {error, invalid_iterator} -> undefined;
+      {error, invalid_iterator} -> not_found;
       Error -> Error
     end
   after
@@ -443,9 +443,9 @@ seek_min_offset_since2(Iter, TopicId, Timestamp) ->
     {ok, {LastOffset, _, LastTimestamp}} ->
       case LastTimestamp >= Timestamp of
         true -> seek_min_offset_since3(Iter, TopicId, Timestamp, LastOffset);
-        false -> undefined %% not match at all
+        false -> not_found %% not match at all
       end;
-    {error, invalid_iterator} -> undefined;
+    {error, invalid_iterator} -> not_found;
     Error -> Error 
   end.
 
@@ -465,9 +465,9 @@ seek_max_offset_until2(Iter, TopicId, Timestamp) ->
     {ok, {FirstOffset, _, FirstTimestamp}} ->
       case FirstTimestamp =< Timestamp of
         true -> seek_max_offset_until3(Iter, TopicId, Timestamp, FirstOffset);
-        false -> undefined %% not match at all
+        false -> not_found %% not match at all
       end;
-    {error, invalid_iterator} -> undefined;
+    {error, invalid_iterator} -> not_found;
     Error -> Error 
   end.
 
