@@ -10,6 +10,6 @@
 -ifndef(maxwell_store).
 -define(maxwell_store, true).
 
--define(maxwell_store_NOTIFY_CMD(TopicName, MaxOffset), {'$maxwell_store_notify', TopicName, MaxOffset}).
+-define(MAXWELL_STORE_NOTIFY_CMD(TopicName, MaxOffset), {'$maxwell_store_notify', TopicName, MaxOffset}).
 
 -endif.

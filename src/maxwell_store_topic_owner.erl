@@ -224,7 +224,7 @@ on_watcher_down(WatcherRef, State) ->
 notify(MaxOffset, State) ->
   dict:fold(
     fun(_, Pid, _) -> 
-      Pid ! ?maxwell_store_NOTIFY_CMD(State#state.topic_name, MaxOffset) 
+      Pid ! ?MAXWELL_STORE_NOTIFY_CMD(State#state.topic_name, MaxOffset) 
     end,
     undefined, State#state.watchers
   ).
