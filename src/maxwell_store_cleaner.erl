@@ -75,9 +75,7 @@ clean(State) ->
   {ok, DbRef} = maxwell_store_db_owner:get_ref(),
   NewState = select_topic(DbRef, State),
   case NewState#state.topic_id =/= undefined of
-    true ->
-      lager:debug("Cleaning: topic_id: ~p", [NewState#state.topic_id]),
-      clean_topic(DbRef, NewState);
+    true -> clean_topic(DbRef, NewState);
     false -> ignore 
   end,
   send_cmd(?CLEAN_CMD, maxwell_store_config:get_clean_interval() * 1000),
