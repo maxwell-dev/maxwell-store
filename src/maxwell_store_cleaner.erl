@@ -97,15 +97,21 @@ clean_topic(DbRef, #state{topic_id = TopicId}) ->
       Result = maxwell_store_db:seek_max_offset_until(
         DbRef, TopicId, get_max_timestamp()),
       case Result of 
-        {ok, Offset} -> 
-          lager:debug(
-            "Deleting: topic_id: ~p, from_offset: ~p, to_offset: ~p", 
-            [TopicId, MinOffset, Offset]
-          ),
-          maxwell_store_db:delete_range(DbRef, TopicId, MinOffset, Offset);
+        {ok, Offset} -> try_delete_range(DbRef, TopicId, MinOffset, Offset);
         _ -> ignore
       end;
     _ -> ignore
+  end.
+
+try_delete_range(DbRef, TopicId, FromOffset, ToOffset) ->
+  case ToOffset > FromOffset of
+    true ->
+      lager:debug(
+        "Deleting: topic_id: ~p, from_offset: ~p, to_offset: ~p", 
+        [TopicId, FromOffset, ToOffset]
+      ),
+      maxwell_store_db:delete_range(DbRef, TopicId, FromOffset, ToOffset);
+    false -> ignore
   end.
 
 get_max_timestamp() ->
