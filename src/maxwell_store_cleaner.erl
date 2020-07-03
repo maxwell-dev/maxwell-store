@@ -110,17 +110,7 @@ try_delete_range(DbRef, TopicId, FromOffset, ToOffset) ->
         "Deleting: topic_id: ~p, from_offset: ~p, to_offset: ~p", 
         [TopicId, FromOffset, ToOffset]
       ),
-      A = maxwell_store_db:get_from(DbRef, TopicId, FromOffset, 10),
-      lager:debug(
-        "get from: topic_id: ~p, from_offset: ~p, result: ~p", 
-        [TopicId, FromOffset, A]
-      ),
-      R = maxwell_store_db:delete_range(DbRef, TopicId, FromOffset, ToOffset),
-      B = maxwell_store_db:get_from(DbRef, TopicId, FromOffset, 10),
-      lager:debug(
-        "get from: topic_id: ~p, from_offset: ~p, result: ~p, R: ~p", 
-        [TopicId, FromOffset, B, R]
-      );
+      maxwell_store_db:delete_range(DbRef, TopicId, FromOffset, ToOffset);
     false -> ignore
   end.
 
